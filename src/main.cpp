@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #define DEBUG 1
 #define ISBETWEEN(lowEnd, test, highEnd) (lowEnd <= test && test <= highEnd)
 int startAddress = 0;
@@ -44,12 +45,12 @@ are receiving data. We can do this by defining an enable pin. */
 39	OK
 */
 
-int transmitPin = 17;
-int receivePin = 16;
-int enablePin = 5;
+const int transmitPin = 17;
+const int receivePin = 16;
+const int enablePin = 5;
 
-int smokePin = 19;
-int fanPin = 21;
+const int smokePin = 19;
+const int fanPin = 21;
 
 // define DMX address selector pins
 // int horizontal[] = {32, 33};
@@ -277,24 +278,25 @@ dmxIsConnected = false;
 }
 #else
 
-#include <Arduino.h>
 #include "DmxInput.h"
 DmxInput dmxInput;
 
 #define START_CHANNEL 1
 #define NUM_CHANNELS 1
+const int rxPin = 2;
+const int smokePin = 5;
 
 volatile uint8_t buffer[DMXINPUT_BUFFER_SIZE(START_CHANNEL, NUM_CHANNELS)];
 
 void setup()
 {
-    // Setup our DMX Input to read on GPIO 0, from channel 1 to 3
-    dmxInput.begin(2, START_CHANNEL, NUM_CHANNELS);
+    // Setup our DMX Input to read on GPIO 2, from channel 1 to 3
+    dmxInput.begin(rxPin, START_CHANNEL, NUM_CHANNELS);
 		dmxInput.read_async(buffer);
 
     // Setup the onboard LED so that we can blink when we receives packets
     pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(5, OUTPUT);
+    pinMode(smokePin, OUTPUT);
 }
 
 void loop()
@@ -313,6 +315,6 @@ void loop()
     }
     Serial.println("");
 		digitalWrite(LED_BUILTIN, ISBETWEEN(100, buffer[START_CHANNEL], 200));
-		digitalWrite(5, ISBETWEEN(100, buffer[START_CHANNEL], 200));
+		digitalWrite(smokePin, ISBETWEEN(100, buffer[START_CHANNEL], 200));
 }
 #endif
