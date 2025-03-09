@@ -1,19 +1,20 @@
-#include <Arduino.h>
+#define DEBUG 1
+#define ISBETWEEN(lowEnd, test, highEnd) (lowEnd <= test && test <= highEnd)
+int startAddress = 0;
+
+#ifndef PICO
 #if OTA
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
 const char *ssid = "BoldogUtca_IOT";
 const char *password = "12345678";
-bool update = 0;
+bool update = 1;
 
 #endif
 
 #include <esp_dmx.h>
 
-#define DEBUG 0
-
-#define ISBETWEEN(lowEnd, test, highEnd) (lowEnd <= test && test <= highEnd)
 
 /* First, lets define the hardware pins that we are using with our ESP32. We
 need to define which pin is transmitting data and which pin is receiving data.
@@ -45,7 +46,7 @@ are receiving data. We can do this by defining an enable pin. */
 
 int transmitPin = 17;
 int receivePin = 16;
-int enablePin = 18;
+int enablePin = 5;
 
 int smokePin = 19;
 int fanPin = 21;
@@ -54,7 +55,6 @@ int fanPin = 21;
 // int horizontal[] = {32, 33};
 // int vertical[] = {25, 26, 27, 13, 4};
 
-int startAddress = 0;
 
 /* Next, lets decide which DMX port to use. The ESP32 has either 2 or 3 ports.
 	Port 0 is typically used to transmit serial data back to your Serial Monitor,
@@ -198,7 +198,7 @@ void loop()
 		officially times out. That amount of time is converted into ESP32 clock
 		ticks using the constant `DMX_TIMEOUT_TICK`. If it takes longer than that
 		amount of time to receive data, this if statement will evaluate to false. */
-	if (dmx_receive_num(dmxPort, &packet, 10, 0))
+	if (dmx_receive_num(dmxPort, &packet, 3, 0))
 	{
 		/* If this code gets called, it means we've received DMX data! */
 
@@ -263,6 +263,7 @@ void loop()
 #if DEBUG
 		Serial.println("DMX was disconnected.");
 #endif // DEBUG
+dmxIsConnected = false;
 	}
 	else
 	{
@@ -274,3 +275,44 @@ void loop()
 		digitalWrite(fanPin, LOW);
 	}
 }
+#else
+
+#include <Arduino.h>
+#include "DmxInput.h"
+DmxInput dmxInput;
+
+#define START_CHANNEL 1
+#define NUM_CHANNELS 1
+
+volatile uint8_t buffer[DMXINPUT_BUFFER_SIZE(START_CHANNEL, NUM_CHANNELS)];
+
+void setup()
+{
+    // Setup our DMX Input to read on GPIO 0, from channel 1 to 3
+    dmxInput.begin(2, START_CHANNEL, NUM_CHANNELS);
+		dmxInput.read_async(buffer);
+
+    // Setup the onboard LED so that we can blink when we receives packets
+    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(5, OUTPUT);
+}
+
+void loop()
+{
+
+    if(millis() - dmxInput.latest_packet_timestamp() > 100) {
+        Serial.println("no data!");
+        return;
+    }
+    // Print the DMX channels
+    Serial.print("Received packet: ");
+    for (uint i = 0; i < sizeof(buffer); i++)
+    {	
+        Serial.print(buffer[i]);
+        Serial.print(", ");
+    }
+    Serial.println("");
+		digitalWrite(LED_BUILTIN, ISBETWEEN(100, buffer[START_CHANNEL], 200));
+		digitalWrite(5, ISBETWEEN(100, buffer[START_CHANNEL], 200));
+}
+#endif
